@@ -2,3 +2,4 @@ out/
 target/
 venv/
 bin/
+.idea/sonarlint/

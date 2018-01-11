@@ -95,12 +95,16 @@ public class RobotFileManager {
             addToCache(result, library);
             return result;
         }
-
-        String mod = library.replace(".py", "").replaceAll("\\.", "\\/");
-        while (mod.contains("//")) {
-            mod = mod.replace("//", "/");
+        String[] file;
+        if (library.contains(".yaml") || library.contains(".yml")) {
+            file = getFilename(library, ".yaml");
+        } else {
+            String mod = library.replace(".py", "").replaceAll("\\.", "\\/");
+            while (mod.contains("//")) {
+                mod = mod.replace("//", "/");
+            }
+            file = getFilename(mod, ".py");
         }
-        String[] file = getFilename(mod, ".py");
         // search project scope
         debug(library, "Attempting project search", project);
         result = findProjectFile(library, file[0], file[1], project, originalElement);

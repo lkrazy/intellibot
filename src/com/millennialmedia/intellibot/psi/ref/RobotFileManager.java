@@ -1,7 +1,9 @@
 package com.millennialmedia.intellibot.psi.ref;
 
 import com.intellij.notification.*;
+import com.intellij.openapi.module.ModuleManager;
 import com.intellij.openapi.project.Project;
+import com.intellij.openapi.roots.ModuleRootManager;
 import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.psi.PsiElement;
 import com.intellij.psi.PsiFile;
@@ -131,7 +133,13 @@ public class RobotFileManager {
     @Nullable
     private static PsiFile findGlobalFile(@NotNull String original, @NotNull String path, @NotNull String fileName,
                                           @NotNull Project project, @NotNull PsiElement originalElement) {
-        return findFile(original, path, fileName, project, GlobalSearchScope.allScope(project), originalElement);
+
+        PsiFile result = findFile(original, path, fileName, project, GlobalSearchScope.allScope(project), originalElement);
+        if (result == null && path.lastIndexOf("../") == 0) {
+            String newPath = path.substring(3);
+            result = findFileFromRoot(original, newPath, fileName, project, GlobalSearchScope.allScope(project), originalElement);
+        }
+        return result;
     }
 
     @Nullable
@@ -151,6 +159,41 @@ public class RobotFileManager {
                 if (!path.endsWith("/")) {
                     path += "/";
                 }
+            }
+        }
+
+        PsiFile[] files = FilenameIndex.getFilesByName(project, fileName, search);
+        StringBuilder builder = new StringBuilder();
+        builder.append(path);
+        builder.append(fileName);
+        path = builder.reverse().toString();
+        debug(original, "matching: " + arrayToString(files), project);
+        for (PsiFile file : files) {
+            debug(original, "trying: " + file.getVirtualFile().getCanonicalPath(), project);
+            if (acceptablePath(path, file)) {
+                debug(original, "matched: " + file.getVirtualFile().getCanonicalPath(), project);
+                return file;
+            }
+        }
+        debug(original, "no acceptable matches", project);
+        return null;
+    }
+
+    @Nullable
+    private static PsiFile findFileFromRoot(@NotNull String original, @NotNull String path, @NotNull String fileName,
+                                    @NotNull Project project, @NotNull GlobalSearchScope search,
+                                    @NotNull PsiElement originalElement) {
+        debug(original, "path::" + path, project);
+        debug(original, "file::" + fileName, project);
+        ModuleRootManager manager = ModuleRootManager.getInstance(ModuleManager.getInstance(project).getModules()[0]);
+        VirtualFile root = manager.getContentRoots()[0];
+
+        VirtualFile relativePath = root.findFileByRelativePath(path);
+        if (relativePath != null && relativePath.isDirectory() && relativePath.getCanonicalPath() != null) {
+            debug(original, "changing relative path to: " + relativePath.getCanonicalPath(), project);
+            path = relativePath.getCanonicalPath();
+            if (!path.endsWith("/")) {
+                path += "/";
             }
         }
 
